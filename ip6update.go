@@ -15,7 +15,7 @@ func main() {
 		help()
 	}
 	if _, err := os.Stat(os.Args[2]); os.IsNotExist(err) {
-		fmt.Printf("File %s not found", os.Args[2])
+		fmt.Printf("File %s not found\n", os.Args[2])
 		help()
 	}
 	switch os.Args[1] {
@@ -31,7 +31,7 @@ func main() {
 }
 
 func help() {
-	fmt.Printf("Usage: %s (server|client) /path/to/config.yaml", os.Args[0])
+	fmt.Printf("Usage: %s (server|client) /path/to/config.yaml\n", os.Args[0])
 	os.Exit(0)
 }
 
