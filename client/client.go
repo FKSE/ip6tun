@@ -7,10 +7,16 @@ import (
 	"net"
 )
 
+type Port struct {
+	Local uint16
+	Remote uint16
+}
+
 type Config struct {
 	Address   string
 	Uid       string
 	SecretKey string `yaml:"secret_key"`
+	Ports []Port
 }
 
 func Run(c *Config) {
@@ -28,24 +34,27 @@ func Run(c *Config) {
 		panic(err)
 	}
 	defer conn.Close()
-	// Create message
-	m := &protocol.Message{
-		Type:       protocol.TypeUpdate,
-		LocalPort:  5000,
-		RemotePort: 1237,
+	for _, p := range c.Ports {
+		fmt.Printf("Creating tunnel from %s:%d to %s:%d\n", conn.RemoteAddr().(*net.TCPAddr).IP.String(), p.Remote, conn.LocalAddr().(*net.TCPAddr).IP.String(), p.Local)
+		// Create message
+		m := &protocol.Message{
+			Type:       protocol.TypeUpdate,
+			LocalPort:  p.Local,
+			RemotePort: p.Remote,
+		}
+		copy(m.ClientId[0:32], id[:])
+		// Marshal message
+		b, err := m.Marshal()
+		if err != nil {
+			panic(err)
+		}
+		// Init cipher
+		ciph, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+		ciph.Encrypt(b, b)
+		// send data
+		conn.Write(b)
 	}
-	copy(m.ClientId[0:32], id[:])
-	// Marshal message
-	b, err := m.Marshal()
-	if err != nil {
-		panic(err)
-	}
-	// Init cipher
-	ciph, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-	ciph.Encrypt(b, b)
-	// send data
-	conn.Write(b)
 }

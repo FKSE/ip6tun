@@ -1,0 +1,7 @@
+# Client config
+address: "fkse.io:29700"
+uid: "fkse-macbookpro"
+secret_key: "f532miTcT12Y7b6tbs5Fi6ufLB9tdg32"
+ports:
+  - local: 80
+    remote: 28001

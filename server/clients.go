@@ -5,6 +5,7 @@ import (
 	"net"
 	"os/exec"
 	"time"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Client struct {
@@ -30,11 +31,11 @@ func listClients() {
 // Remove old entries
 func cleanup() {
 	for _ = range tickerCleanup.C {
-		fmt.Println("Starting cleanup")
+		log.Info("Starting cleanup")
 		for k, c := range clients {
 			if c.RemoveAt.Before(time.Now()) {
 				mutex.Lock()
-				fmt.Printf("Removing Client %s\n", c.String())
+				log.Infof("Removing Client %s\n", c.String())
 				delete(clients, k)
 				mutex.Unlock()
 			}
