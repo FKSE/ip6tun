@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	TypeUpdate      = 0x01
-	TypeDelete      = 0x02
-	TypeAcknowledge = 0x03
+	TypeUpdate        = 0x01
+	TypeDelete        = 0x02
+	TypeAcknowledge   = 0x03
 	TypeErrorNoTunnel = 0x04 // Unable to create tunnel
 )
 

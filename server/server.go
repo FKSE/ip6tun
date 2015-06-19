@@ -4,15 +4,15 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/fkse/ip6update/protocol"
 	"net"
-	"os"
-	"sync"
-	"time"
 	"net/http"
-	log "github.com/Sirupsen/logrus"
+	"os"
 	"os/exec"
 	"strconv"
+	"sync"
+	"time"
 )
 
 // Server configuration
@@ -114,8 +114,9 @@ func handle(c net.Conn) {
 			LocalPort:  m.LocalPort,
 			RemotePort: m.RemotePort,
 			RemoveAt:   time.Now().Add(12 * time.Hour),
-			Cmd:exec.Command(conf.Bin6Tunnel, "-6d", strconv.Itoa(int(m.RemotePort)), c.RemoteAddr().String(), strconv.Itoa(int(m.LocalPort))),
+			Cmd:        exec.Command(conf.Bin6Tunnel, "-6d", strconv.Itoa(int(m.RemotePort)), c.RemoteAddr().String(), strconv.Itoa(int(m.LocalPort))),
 		}
+		log.Infof("%s -6d %d %s %d", conf.Bin6Tunnel, m.RemotePort, c.RemoteAddr(), m.LocalPort)
 		err := cl.Cmd.Run()
 		if err != nil {
 			log.Errorf("Unable to start tunnel6: %s", err.Error())

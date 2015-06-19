@@ -2,11 +2,10 @@ package server
 
 import (
 	"fmt"
-	"time"
-	"os/exec"
 	"net"
+	"os/exec"
+	"time"
 )
-
 
 type Client struct {
 	ClientId   [32]byte
