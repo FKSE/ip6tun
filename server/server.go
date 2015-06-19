@@ -116,7 +116,7 @@ func handle(c net.Conn) {
 			RemoveAt:   time.Now().Add(12 * time.Hour),
 			Cmd:        exec.Command(conf.Bin6Tunnel, "-6d", strconv.Itoa(int(m.RemotePort)), c.RemoteAddr().String(), strconv.Itoa(int(m.LocalPort))),
 		}
-		log.Infof("%s -6d %d %s %d", conf.Bin6Tunnel, m.RemotePort, c.RemoteAddr(), m.LocalPort)
+		log.Infof("%s -6d %d %s %d", conf.Bin6Tunnel, m.RemotePort, c.RemoteAddr().String(), m.LocalPort)
 		err := cl.Cmd.Run()
 		if err != nil {
 			log.Errorf("Unable to start tunnel6: %s", err.Error())
