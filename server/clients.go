@@ -9,7 +9,7 @@ import (
 
 type Client struct {
 	ClientId   [32]byte
-	Address    net.Addr
+	Address    net.IP
 	LocalPort  uint16
 	RemotePort uint16
 	RemoveAt   time.Time
