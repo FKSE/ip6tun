@@ -1,48 +1,49 @@
 package server
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"fmt"
 	"github.com/fkse/ip6update/protocol"
 	"net"
 	"os"
 	"sync"
 	"time"
-	"crypto/cipher"
-	"crypto/aes"
+	"net/http"
+	log "github.com/Sirupsen/logrus"
+	"os/exec"
+	"strconv"
 )
 
 // Server configuration
 type Config struct {
-	Port int
-	SecretKey string `yaml:"secret_key"`
+	Port       int    `yaml:"port"`
+	HttpPort   int    `yaml:"http_port"`
+	SecretKey  string `yaml:"secret_key"`
+	Bin6Tunnel string `yaml:"bin_6tunnel"`
 }
 
-type Client struct {
-	ClientId   [32]byte
-	Address    net.Addr
-	LocalPort  uint16
-	RemotePort uint16
-	RemoveAt time.Time
-}
-
-func (c *Client) String() string {
-	return fmt.Sprintf("Id: %s, Address: %s, Local-Port: %d, Remote-Port: %d, Remove-At: %s", c.ClientId, c.Address, c.LocalPort, c.RemotePort, c.RemoveAt)
-}
+// App config
+var conf *Config
 
 // List of all clients
 var clients map[string]Client
+
 // Mutex for accessing clients list
 var mutex *sync.Mutex
+
 // AES cipher block
 var ciph cipher.Block
+
 // Cleanup ticker
 var tickerCleanup *time.Ticker
 
 func Run(c *Config) {
+	conf = c
 	key := []byte(c.SecretKey)
 	//validate key length
-	if (len(key) < 32) {
-		fmt.Printf("The given key %s is to short. Expected length 32 given %d.\n", c.SecretKey, len(key))
+	if len(key) < 32 {
+		log.Errorf("The given key %s is to short. Expected length 32 given %d.", c.SecretKey, len(key))
 		return
 	}
 	//init cipher
@@ -60,9 +61,16 @@ func Run(c *Config) {
 	tickerCleanup = time.NewTicker(time.Minute * 15)
 	go cleanup()
 
+	// Start http server if set
+	if c.HttpPort != 0 {
+		http.HandleFunc("/", handleHttp)
+		go http.ListenAndServe(fmt.Sprintf(":%d", c.HttpPort), nil)
+		log.Infof("HTTP-Server running at port %d", c.HttpPort)
+	}
+
 	// Start server
 	ln, err := net.Listen("tcp6", fmt.Sprintf(":%d", c.Port))
-	fmt.Printf("Server running at port %d\n", c.Port)
+	log.Infof("Server running at port %d", c.Port)
 	if err != nil {
 		panic(err)
 	}
@@ -78,6 +86,8 @@ func Run(c *Config) {
 }
 
 func handle(c net.Conn) {
+	// Close connection later
+	defer c.Close()
 	// get message
 	buf := make([]byte, 1024)
 	// read input
@@ -98,43 +108,51 @@ func handle(c net.Conn) {
 	key := string(m.ClientId[:])
 	// Update/Create
 	if m.Type == protocol.TypeUpdate {
-		mutex.Lock()
-		clients[key] = Client{
-			ClientId:m.ClientId,
-			Address:c.RemoteAddr(),
-			LocalPort:m.LocalPort,
-			RemotePort:m.RemotePort,
-			RemoveAt:time.Now().Add(12 * time.Hour),
+		cl := Client{
+			ClientId:   m.ClientId,
+			Address:    c.RemoteAddr(),
+			LocalPort:  m.LocalPort,
+			RemotePort: m.RemotePort,
+			RemoveAt:   time.Now().Add(12 * time.Hour),
+			Cmd:exec.Command(conf.Bin6Tunnel, "-6d", strconv.Itoa(int(m.RemotePort)), c.RemoteAddr().String(), strconv.Itoa(int(m.LocalPort))),
 		}
+		err := cl.Cmd.Run()
+		if err != nil {
+			log.Errorf("Unable to start tunnel6: %s", err.Error())
+			// Send error to client; Message is basically the same besides the type
+			m.Type = protocol.TypeErrorNoTunnel
+			// encode and encrypt
+			b, err := m.Marshal()
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			ciph.Encrypt(b, b)
+			// send message to client
+			c.Write(b)
+			return
+		}
+		mutex.Lock()
+		clients[key] = cl
 		mutex.Unlock()
 	} else if m.Type == protocol.TypeDelete {
 		mutex.Lock()
 		delete(clients, key)
 		mutex.Unlock()
 	} else {
-		fmt.Fprintln(os.Stderr, "Invalid message")
+		log.Warn("Received invalid message")
 	}
 
 	listClients()
 }
 
-func listClients() {
-	for _, c := range clients {
-		fmt.Println(c.String())
+func handleHttp(w http.ResponseWriter, r *http.Request) {
+	// Check for key
+	if r.URL.Query().Get("key") != conf.SecretKey {
+		http.Error(w, "Access Denied", http.StatusForbidden)
+		return
 	}
-}
 
-// Remove old entries
-func cleanup() {
-	for _ = range tickerCleanup.C {
-		fmt.Println("Starting cleanup")
-		for k, c := range clients {
-			if c.RemoveAt.Before(time.Now()) {
-				mutex.Lock()
-				fmt.Printf("Removing Client %s\n", c.String())
-				delete(clients, k)
-				mutex.Unlock()
-			}
-		}
-	}
+	fmt.Printf("Hi there, I love %s!\n", r.URL)
+	fmt.Fprintf(w, "Hi there, I love %s!", r.URL)
 }

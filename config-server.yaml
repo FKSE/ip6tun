@@ -1,3 +1,4 @@
 port: 29700
+http_port: 29701
 secret_key: "ep5870HGcm1Gx6ca1X70Xg6w34xX0K9N"
-bin: /usr/bin/6tunnel
+bin_6tunnel: /usr/bin/6tunnel
