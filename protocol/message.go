@@ -2,22 +2,23 @@ package protocol
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
 )
 
 const (
-	TypeUpdate        = 0x01
-	TypeDelete        = 0x02
-	TypeAcknowledge   = 0x03
-	TypeErrorNoTunnel = 0x04 // Unable to create tunnel
+	TypeUpdate byte = iota
+	TypeDelete
+	TypeAcknowledge
+	TypeErrorNoTunnel
 )
 
 type Message struct {
 	Type       byte
 	ClientId   [32]byte
-	LocalPort  uint16
-	RemotePort uint16
+	PortMapping map[uint16]uint16 // local => remote
 }
 
 func (m *Message) String() string {
@@ -41,4 +42,18 @@ func Unmarshal(b []byte) (m *Message, err error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func initCipher(key string) (cipher.AEAD, error) {
+	// Init aes cipher
+	ciph, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+	// gcm cipher
+	gcm, err := cipher.NewGCM(ciph)
+	if err != nil {
+		return nil, err
+	}
+	return gcm, nil
 }

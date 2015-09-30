@@ -4,15 +4,15 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/fkse/ip6update/protocol"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/fkse/ip6update/protocol"
 )
 
 // Server configuration
@@ -60,13 +60,6 @@ func Run(c *Config) {
 	// Cleanup of old clients
 	tickerCleanup = time.NewTicker(time.Minute * 15)
 	go cleanup()
-
-	// Start http server if set
-	if c.HttpPort != 0 {
-		http.HandleFunc("/", handleHttp)
-		go http.ListenAndServe(fmt.Sprintf(":%d", c.HttpPort), nil)
-		log.Infof("HTTP-Server running at port %d", c.HttpPort)
-	}
 
 	// Start server
 	ln, err := net.Listen("tcp6", fmt.Sprintf(":%d", c.Port))
@@ -146,15 +139,4 @@ func handle(c net.Conn) {
 	}
 
 	listClients()
-}
-
-func handleHttp(w http.ResponseWriter, r *http.Request) {
-	// Check for key
-	if r.URL.Query().Get("key") != conf.SecretKey {
-		http.Error(w, "Access Denied", http.StatusForbidden)
-		return
-	}
-
-	fmt.Printf("Hi there, I love %s!\n", r.URL)
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL)
 }
